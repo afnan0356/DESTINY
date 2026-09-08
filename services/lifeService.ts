@@ -33,7 +33,40 @@ export class LifeService {
    * User → SaveSlot → Life → Character
    */
   public static async createNewLife(input: CreateLifeInput): Promise<LifeSummaryResponse> {
-    const { username, slotName, characterName, birthYear = 2000, isDormant = false } = input;
+    const {
+      username,
+      slotName,
+      characterName,
+      birthYear = 2000,
+      isDormant = false,
+      birthCountry = 'United States',
+      birthCity = 'New York',
+      gender = 'Male',
+      sexuality = 'Heterosexual',
+      talent = 'None',
+      eyeStyle = 'Almond',
+      eyeColor = 'Brown',
+      skinTone = 'Fair',
+      browStyle = 'Straight',
+      facialHairStyle = 'Clean Shaven',
+      facialHairColor = 'Black',
+      hairStyle = 'Short Crop',
+      hairColor = 'Black',
+      intelligence = randomStat(45, 95),
+      discipline = randomStat(40, 90),
+      willpower = randomStat(40, 90),
+      ambition = randomStat(45, 95),
+      health = randomStat(60, 99),
+      looks = randomStat(40, 90),
+      smarts = randomStat(45, 95),
+      happiness = randomStat(50, 90),
+      fertility = randomStat(70, 95),
+      energy = randomStat(80, 100),
+      athleticPerformance = randomStat(40, 85),
+      geneticHealthModifier = null,
+      geneticIntelligenceModifier = null,
+      geneticLooksModifier = null,
+    } = input;
 
     // Use Prisma interactive transaction for atomic execution across all 4 models
     const result = await prisma.$transaction(async (tx) => {
@@ -68,14 +101,33 @@ export class LifeService {
       const character = await tx.character.create({
         data: {
           lifeId: life.id,
-          intelligence: randomStat(45, 95),
-          discipline: randomStat(40, 90),
-          willpower: randomStat(40, 90),
-          ambition: randomStat(45, 95),
-          health: randomStat(60, 99),
-          looks: randomStat(40, 90),
-          smarts: randomStat(45, 95),
-          happiness: randomStat(50, 90),
+          intelligence,
+          discipline,
+          willpower,
+          ambition,
+          health,
+          looks,
+          smarts,
+          happiness,
+          fertility,
+          energy,
+          athleticPerformance,
+          gender,
+          sexuality,
+          talent,
+          eyeStyle,
+          eyeColor,
+          skinTone,
+          browStyle,
+          facialHairStyle,
+          facialHairColor,
+          hairStyle,
+          hairColor,
+          geneticHealthModifier,
+          geneticIntelligenceModifier,
+          geneticLooksModifier,
+          birthCity,
+          birthCountry,
           karma: randomStat(30, 80), // Stored in DB, never exposed to client
         },
       });
@@ -89,6 +141,31 @@ export class LifeService {
       life: result.life,
       character: this.toClientCharacter(result.character),
     };
+  }
+
+  /**
+   * Updates character stats (e.g. from AgingService).
+   */
+  public static async updateCharacterStats(
+    characterId: string,
+    updates: Partial<Character>
+  ): Promise<ClientCharacter> {
+    const { karma, ...allowedUpdates } = updates;
+    const updated = await prisma.character.update({
+      where: { id: characterId },
+      data: allowedUpdates,
+    });
+    return this.toClientCharacter(updated);
+  }
+
+  /**
+   * Updates life age.
+   */
+  public static async updateLifeAge(lifeId: string, currentAge: number): Promise<void> {
+    await prisma.life.update({
+      where: { id: lifeId },
+      data: { currentAge },
+    });
   }
 
   /**

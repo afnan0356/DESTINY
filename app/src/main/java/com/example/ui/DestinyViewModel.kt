@@ -7,9 +7,13 @@ import com.example.data.local.DestinyDatabase
 import com.example.data.local.entity.LifeEntity
 import com.example.data.repository.DestinyRepository
 import com.example.data.repository.LifeRecordSummary
+import com.example.services.AgingService
+import com.example.services.DeathService
 import com.example.services.FormulaEngine
 import com.example.services.GameClock
 import com.example.services.LifeService
+import com.example.ui.screens.CharacterCreationParams
+import com.example.ui.screens.SimulationLogItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +23,8 @@ import kotlinx.coroutines.launch
 
 sealed interface DestinyScreen {
     data object Landing : DestinyScreen
+    data object CharacterCreation : DestinyScreen
+    data class CharacterProfile(val lifeId: String) : DestinyScreen
     data object NewLifeFlow : DestinyScreen
     data object ArchitectureSpec : DestinyScreen
 }
@@ -61,6 +67,22 @@ class DestinyViewModel(application: Application) : AndroidViewModel(application)
 
     private val _lastFormulaOutcome = MutableStateFlow<FormulaEngine.Outcome?>(null)
     val lastFormulaOutcome: StateFlow<FormulaEngine.Outcome?> = _lastFormulaOutcome.asStateFlow()
+
+    // --- Prompt 02 Character Creation & Profile State ---
+    private val _isSubmittingCharacter = MutableStateFlow(false)
+    val isSubmittingCharacter: StateFlow<Boolean> = _isSubmittingCharacter.asStateFlow()
+
+    private val _activeProfileSummary = MutableStateFlow<LifeRecordSummary?>(null)
+    val activeProfileSummary: StateFlow<LifeRecordSummary?> = _activeProfileSummary.asStateFlow()
+
+    private val _deathCheckResult = MutableStateFlow<DeathService.DeathCheckResult?>(null)
+    val deathCheckResult: StateFlow<DeathService.DeathCheckResult?> = _deathCheckResult.asStateFlow()
+
+    private val _simLogs = MutableStateFlow<List<SimulationLogItem>>(emptyList())
+    val simLogs: StateFlow<List<SimulationLogItem>> = _simLogs.asStateFlow()
+
+    private val _isAging = MutableStateFlow(false)
+    val isAging: StateFlow<Boolean> = _isAging.asStateFlow()
 
     init {
         // Evaluate initial sample through FormulaEngine to verify pipeline
@@ -171,5 +193,129 @@ class DestinyViewModel(application: Application) : AndroidViewModel(application)
             worldVariables = FormulaEngine.WorldVariables(economicCycleIndex = 1.1)
         )
         _lastFormulaOutcome.value = testOutcome
+    }
+
+    // --- Prompt 02 Character Creation & Aging Methods ---
+
+    fun openCharacterProfile(lifeId: String) {
+        viewModelScope.launch {
+            val summary = lifeService.getLifeDetails(lifeId)
+            _activeProfileSummary.value = summary
+            _deathCheckResult.value = null
+            _simLogs.value = listOf(
+                SimulationLogItem(
+                    id = "init",
+                    year = summary.life.birthYear,
+                    age = summary.life.currentAge,
+                    narrative = "Born in ${summary.clientCharacter.birthCity}, ${summary.clientCharacter.birthCountry}. Innate talent: ${summary.clientCharacter.talent}."
+                )
+            )
+            _currentScreen.value = DestinyScreen.CharacterProfile(lifeId)
+        }
+    }
+
+    fun createFullCharacter(params: CharacterCreationParams) {
+        _isSubmittingCharacter.value = true
+        viewModelScope.launch {
+            try {
+                val fullName = "${params.firstName.trim()} ${params.lastName.trim()}".trim()
+                val record = lifeService.createNewLife(
+                    playerName = "Player_${params.firstName}",
+                    saveSlotName = "Slot $fullName",
+                    characterName = fullName,
+                    birthYear = 2000,
+                    isDormant = false,
+                    birthCountry = params.country,
+                    birthCity = params.city,
+                    gender = params.gender,
+                    sexuality = params.sexuality,
+                    talent = params.talent,
+                    eyeStyle = params.eyeStyle,
+                    eyeColor = params.eyeColor,
+                    skinTone = params.skinTone,
+                    browStyle = params.browStyle,
+                    facialHairStyle = params.facialHairStyle,
+                    facialHairColor = params.facialHairColor,
+                    hairStyle = params.hairStyle,
+                    hairColor = params.hairColor,
+                    intelligence = params.intelligence,
+                    discipline = params.discipline,
+                    willpower = params.willpower,
+                    ambition = params.ambition,
+                    health = params.health,
+                    looks = params.looks,
+                    smarts = params.smarts,
+                    happiness = params.happiness,
+                    fertility = params.fertility,
+                    energy = params.energy,
+                    athleticPerformance = params.athleticPerformance
+                )
+
+                _activeProfileSummary.value = record
+                _deathCheckResult.value = null
+                _simLogs.value = listOf(
+                    SimulationLogItem(
+                        id = "init-${System.currentTimeMillis()}",
+                        year = record.life.birthYear,
+                        age = 0,
+                        narrative = "Born in ${record.clientCharacter.birthCity}, ${record.clientCharacter.birthCountry}. Innate talent: ${record.clientCharacter.talent}."
+                    )
+                )
+                _isSubmittingCharacter.value = false
+                _currentScreen.value = DestinyScreen.CharacterProfile(record.life.id)
+            } catch (e: Exception) {
+                _isSubmittingCharacter.value = false
+            }
+        }
+    }
+
+    fun ageActiveCharacter() {
+        val currentSummary = _activeProfileSummary.value ?: return
+        if (_deathCheckResult.value?.isDead == true || _isAging.value) return
+
+        _isAging.value = true
+        viewModelScope.launch {
+            try {
+                val life = currentSummary.life
+                val character = currentSummary.clientCharacter
+                val nextAge = life.currentAge + 1
+                val simYear = life.birthYear + nextAge
+
+                // 1. Run AgingService
+                val agingResult = AgingService.ageOneYear(character, life.currentAge)
+
+                // 2. Run DeathService
+                val deathResult = DeathService.checkMortality(
+                    age = nextAge,
+                    health = agingResult.newStats.health,
+                    character = character
+                )
+
+                // 3. Update DB
+                lifeService.updateLifeAge(life.id, nextAge)
+                lifeService.updateCharacterStats(
+                    characterId = character.id,
+                    health = agingResult.newStats.health,
+                    fertility = agingResult.newStats.fertility,
+                    energy = agingResult.newStats.energy,
+                    athleticPerformance = agingResult.newStats.athleticPerformance
+                )
+
+                val updatedSummary = lifeService.getLifeDetails(life.id)
+                _activeProfileSummary.value = updatedSummary
+                _deathCheckResult.value = deathResult
+
+                val newLog = SimulationLogItem(
+                    id = "$simYear-${System.currentTimeMillis()}",
+                    year = simYear,
+                    age = nextAge,
+                    narrative = if (deathResult.isDead) "DECEASED at age $nextAge: ${deathResult.cause}" else agingResult.narrative,
+                    isFatal = deathResult.isDead
+                )
+                _simLogs.value = listOf(newLog) + _simLogs.value
+            } finally {
+                _isAging.value = false
+            }
+        }
     }
 }

@@ -30,6 +30,15 @@ export interface Life {
   updatedAt: Date;
 }
 
+export type TalentType =
+  | 'None'
+  | 'Acting'
+  | 'Crime'
+  | 'Dealing'
+  | 'Modeling'
+  | 'Music'
+  | 'Sports';
+
 export interface Character {
   id: string;
   lifeId: string;
@@ -41,6 +50,25 @@ export interface Character {
   looks: number;
   smarts: number;
   happiness: number;
+  fertility: number;
+  energy: number;
+  athleticPerformance: number;
+  gender: string;
+  sexuality: string;
+  talent: TalentType | string;
+  eyeStyle: string;
+  eyeColor: string;
+  skinTone: string;
+  browStyle: string;
+  facialHairStyle: string;
+  facialHairColor: string;
+  hairStyle: string;
+  hairColor: string;
+  geneticHealthModifier?: number | null;
+  geneticIntelligenceModifier?: number | null;
+  geneticLooksModifier?: number | null;
+  birthCity: string;
+  birthCountry: string;
   karma: number; // Internal database only
   createdAt: Date;
   updatedAt: Date;
@@ -144,8 +172,65 @@ export interface ClockState {
 
 export interface CreateLifeInput {
   username: string;
-  slotName: string;
+  slotName?: string;
   characterName: string;
   birthYear?: number;
   isDormant?: boolean;
+  birthCountry?: string;
+  birthCity?: string;
+  gender?: string;
+  sexuality?: string;
+  talent?: TalentType | string;
+  eyeStyle?: string;
+  eyeColor?: string;
+  skinTone?: string;
+  browStyle?: string;
+  facialHairStyle?: string;
+  facialHairColor?: string;
+  hairStyle?: string;
+  hairColor?: string;
+  intelligence?: number;
+  discipline?: number;
+  willpower?: number;
+  ambition?: number;
+  health?: number;
+  looks?: number;
+  smarts?: number;
+  happiness?: number;
+  fertility?: number;
+  energy?: number;
+  athleticPerformance?: number;
+  geneticHealthModifier?: number | null;
+  geneticIntelligenceModifier?: number | null;
+  geneticLooksModifier?: number | null;
+}
+
+export interface AgingResult {
+  newAge: number;
+  previousStats: {
+    health: number;
+    fertility: number;
+    energy: number;
+    athleticPerformance: number;
+  };
+  newStats: {
+    health: number;
+    fertility: number;
+    energy: number;
+    athleticPerformance: number;
+  };
+  deltas: {
+    health: number;
+    fertility: number;
+    energy: number;
+    athleticPerformance: number;
+  };
+  narrative: string;
+}
+
+export interface DeathCheckResult {
+  isDead: boolean;
+  cause: string | null;
+  mortalityProbability: number;
+  roll: number;
 }

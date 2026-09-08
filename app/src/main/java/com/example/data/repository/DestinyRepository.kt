@@ -42,6 +42,19 @@ class DestinyRepository(private val dao: DestinyDao) {
         characterName: String,
         birthYear: Int = 2000,
         isDormant: Boolean = false,
+        birthCountry: String = "United States",
+        birthCity: String = "New York",
+        gender: String = "Male",
+        sexuality: String = "Heterosexual",
+        talent: String = "None",
+        eyeStyle: String = "Almond",
+        eyeColor: String = "Brown",
+        skinTone: String = "Fair",
+        browStyle: String = "Straight",
+        facialHairStyle: String = "Clean Shaven",
+        facialHairColor: String = "Black",
+        hairStyle: String = "Short Crop",
+        hairColor: String = "Black",
         intelligence: Int = Random.nextInt(40, 95),
         discipline: Int = Random.nextInt(35, 90),
         willpower: Int = Random.nextInt(40, 90),
@@ -50,6 +63,12 @@ class DestinyRepository(private val dao: DestinyDao) {
         looks: Int = Random.nextInt(40, 90),
         smarts: Int = Random.nextInt(45, 95),
         happiness: Int = Random.nextInt(50, 90),
+        fertility: Int = Random.nextInt(70, 95),
+        energy: Int = Random.nextInt(80, 100),
+        athleticPerformance: Int = Random.nextInt(40, 85),
+        geneticHealthModifier: Double? = null,
+        geneticIntelligenceModifier: Double? = null,
+        geneticLooksModifier: Double? = null,
         internalKarma: Int = Random.nextInt(30, 80)
     ): LifeRecordSummary {
         val user = UserEntity(
@@ -83,6 +102,25 @@ class DestinyRepository(private val dao: DestinyDao) {
             looks = looks,
             smarts = smarts,
             happiness = happiness,
+            fertility = fertility,
+            energy = energy,
+            athleticPerformance = athleticPerformance,
+            gender = gender,
+            sexuality = sexuality,
+            talent = talent,
+            eyeStyle = eyeStyle,
+            eyeColor = eyeColor,
+            skinTone = skinTone,
+            browStyle = browStyle,
+            facialHairStyle = facialHairStyle,
+            facialHairColor = facialHairColor,
+            hairStyle = hairStyle,
+            hairColor = hairColor,
+            geneticHealthModifier = geneticHealthModifier,
+            geneticIntelligenceModifier = geneticIntelligenceModifier,
+            geneticLooksModifier = geneticLooksModifier,
+            birthCity = birthCity,
+            birthCountry = birthCountry,
             karma = internalKarma // Stored internally, never exposed to client
         )
 
@@ -94,6 +132,20 @@ class DestinyRepository(private val dao: DestinyDao) {
             life = life,
             clientCharacter = character.toClientCharacter()
         )
+    }
+
+    suspend fun updateCharacterAgingStats(
+        characterId: String,
+        health: Int,
+        fertility: Int,
+        energy: Int,
+        athleticPerformance: Int
+    ) {
+        dao.updateCharacterAgingStats(characterId, health, fertility, energy, athleticPerformance)
+    }
+
+    suspend fun updateLifeAge(lifeId: String, newAge: Int) {
+        dao.updateLifeAge(lifeId, newAge)
     }
 
     suspend fun getLifeSummary(lifeId: String): LifeRecordSummary? {

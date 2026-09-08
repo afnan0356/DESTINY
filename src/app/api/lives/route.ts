@@ -9,7 +9,7 @@ import { LifeService } from '@/services/lifeService';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, slotName, characterName, birthYear, isDormant } = body;
+    const { username, slotName, characterName } = body;
 
     if (!username || !characterName) {
       return NextResponse.json(
@@ -19,17 +19,42 @@ export async function POST(request: NextRequest) {
     }
 
     const summary = await LifeService.createNewLife({
-      username,
-      slotName: slotName || `Slot_${Date.now()}`,
-      characterName,
-      birthYear: birthYear ? Number(birthYear) : 2000,
-      isDormant: Boolean(isDormant),
+      ...body,
+      birthYear: body.birthYear ? Number(body.birthYear) : 2000,
+      isDormant: Boolean(body.isDormant),
     });
 
     return NextResponse.json(summary, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || 'Failed to create life' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/lives
+ * Updates life age or character stats (e.g. from AgingService).
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { lifeId, characterId, age, stats } = body;
+
+    if (lifeId && typeof age === 'number') {
+      await LifeService.updateLifeAge(lifeId, age);
+    }
+
+    if (characterId && stats) {
+      const updatedCharacter = await LifeService.updateCharacterStats(characterId, stats);
+      return NextResponse.json({ success: true, character: updatedCharacter });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error?.message || 'Failed to update life record' },
       { status: 500 }
     );
   }

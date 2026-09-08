@@ -68,20 +68,39 @@ model Life {
 // but MUST NEVER be exposed in any API response or client model.
 // ---------------------------------------------------------
 model Character {
-  id           String   @id @default(uuid())
-  lifeId       String   @unique
-  intelligence Int      @default(50)
-  discipline   Int      @default(50)
-  willpower    Int      @default(50)
-  ambition     Int      @default(50)
-  health       Int      @default(80)
-  looks        Int      @default(50)
-  smarts       Int      @default(50)
-  happiness    Int      @default(75)
-  karma        Int      @default(50) // HIDDEN FROM CLIENT
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  life         Life     @relation(fields: [lifeId], references: [id], onDelete: Cascade)
+  id                          String   @id @default(uuid())
+  lifeId                      String   @unique
+  intelligence                Int      @default(50)
+  discipline                  Int      @default(50)
+  willpower                   Int      @default(50)
+  ambition                    Int      @default(50)
+  health                      Int      @default(80)
+  looks                       Int      @default(50)
+  smarts                      Int      @default(50)
+  happiness                   Int      @default(75)
+  fertility                   Int      @default(80)
+  energy                      Int      @default(100)
+  athleticPerformance         Int      @default(50)
+  gender                      String   @default("Male")
+  sexuality                   String   @default("Heterosexual")
+  talent                      String   @default("None")
+  eyeStyle                    String   @default("Almond")
+  eyeColor                    String   @default("Brown")
+  skinTone                    String   @default("Fair")
+  browStyle                   String   @default("Straight")
+  facialHairStyle             String   @default("Clean Shaven")
+  facialHairColor             String   @default("Black")
+  hairStyle                   String   @default("Short Crop")
+  hairColor                   String   @default("Black")
+  geneticHealthModifier       Float?
+  geneticIntelligenceModifier Float?
+  geneticLooksModifier        Float?
+  birthCity                   String   @default("New York")
+  birthCountry                String   @default("United States")
+  karma                       Int      @default(50) // HIDDEN FROM CLIENT
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  life                        Life     @relation(fields: [lifeId], references: [id], onDelete: Cascade)
 
   @@index([lifeId])
   @@map("characters")

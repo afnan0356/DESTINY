@@ -29,15 +29,77 @@ class LifeService(private val repository: DestinyRepository) {
         saveSlotName: String,
         characterName: String,
         birthYear: Int = 2000,
-        isDormant: Boolean = false
+        isDormant: Boolean = false,
+        birthCountry: String = "United States",
+        birthCity: String = "New York",
+        gender: String = "Male",
+        sexuality: String = "Heterosexual",
+        talent: String = "None",
+        eyeStyle: String = "Almond",
+        eyeColor: String = "Brown",
+        skinTone: String = "Fair",
+        browStyle: String = "Straight",
+        facialHairStyle: String = "Clean Shaven",
+        facialHairColor: String = "Black",
+        hairStyle: String = "Short Crop",
+        hairColor: String = "Black",
+        intelligence: Int? = null,
+        discipline: Int? = null,
+        willpower: Int? = null,
+        ambition: Int? = null,
+        health: Int? = null,
+        looks: Int? = null,
+        smarts: Int? = null,
+        happiness: Int? = null,
+        fertility: Int? = null,
+        energy: Int? = null,
+        athleticPerformance: Int? = null
     ): LifeRecordSummary {
         return repository.createNewLife(
             playerName = playerName,
             saveSlotName = saveSlotName,
             characterName = characterName,
             birthYear = birthYear,
-            isDormant = isDormant
+            isDormant = isDormant,
+            birthCountry = birthCountry,
+            birthCity = birthCity,
+            gender = gender,
+            sexuality = sexuality,
+            talent = talent,
+            eyeStyle = eyeStyle,
+            eyeColor = eyeColor,
+            skinTone = skinTone,
+            browStyle = browStyle,
+            facialHairStyle = facialHairStyle,
+            facialHairColor = facialHairColor,
+            hairStyle = hairStyle,
+            hairColor = hairColor,
+            intelligence = intelligence ?: (45..90).random(),
+            discipline = discipline ?: (40..85).random(),
+            willpower = willpower ?: (40..85).random(),
+            ambition = ambition ?: (45..90).random(),
+            health = health ?: (60..98).random(),
+            looks = looks ?: (40..90).random(),
+            smarts = smarts ?: (45..90).random(),
+            happiness = happiness ?: (50..90).random(),
+            fertility = fertility ?: (70..95).random(),
+            energy = energy ?: (80..100).random(),
+            athleticPerformance = athleticPerformance ?: (40..85).random()
         )
+    }
+
+    suspend fun updateCharacterAgingStats(
+        characterId: String,
+        health: Int,
+        fertility: Int,
+        energy: Int,
+        athleticPerformance: Int
+    ) {
+        repository.updateCharacterAgingStats(characterId, health, fertility, energy, athleticPerformance)
+    }
+
+    suspend fun updateLifeAge(lifeId: String, newAge: Int) {
+        repository.updateLifeAge(lifeId, newAge)
     }
 
     suspend fun getLifeDetails(lifeId: String): LifeRecordSummary? {

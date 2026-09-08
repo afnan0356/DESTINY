@@ -66,7 +66,8 @@ fun DestinyLandingScreen(
     onNavigate: (DestinyScreen) -> Unit,
     onAdvanceClock: () -> Unit,
     onClockResolutionChange: (GameClock.TickResolution) -> Unit,
-    onInspectLife: (String) -> Unit
+    onInspectLife: (String) -> Unit,
+    onOpenProfile: (String) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
@@ -148,16 +149,16 @@ fun DestinyLandingScreen(
                         lineHeight = 18.sp
                     )
 
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Button(
-                            onClick = { onNavigate(DestinyScreen.NewLifeFlow) },
+                            onClick = { onNavigate(DestinyScreen.CharacterCreation) },
                             modifier = Modifier
-                                .weight(1f)
+                                .fillMaxWidth()
                                 .height(48.dp)
-                                .testTag("start_new_life_button"),
+                                .testTag("start_character_creation_button"),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = DestinyPrimary,
                                 contentColor = Color(0xFF021626)
@@ -166,39 +167,62 @@ fun DestinyLandingScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "Create Life",
+                                contentDescription = "Create Character",
                                 modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "New Life Flow",
+                                text = "Character Creator (7 Steps)",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
                         }
 
-                        OutlinedButton(
-                            onClick = { onNavigate(DestinyScreen.ArchitectureSpec) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .testTag("view_spec_button"),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = DestinyTextPrimary
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Code,
-                                contentDescription = "Spec",
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "System Spec",
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
-                            )
+                            OutlinedButton(
+                                onClick = { onNavigate(DestinyScreen.NewLifeFlow) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .testTag("start_new_life_button"),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = DestinyTextPrimary
+                                )
+                            ) {
+                                Text(
+                                    text = "Quick Flow",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = { onNavigate(DestinyScreen.ArchitectureSpec) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .testTag("view_spec_button"),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = DestinyTextPrimary
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Code,
+                                    contentDescription = "Spec",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "System Spec",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp
+                                )
+                            }
                         }
                     }
                 }

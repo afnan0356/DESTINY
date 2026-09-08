@@ -4,21 +4,20 @@ import React, { useState } from 'react';
 import { evaluateFormula } from '@/lib/formulaEngine';
 import { GameClockService } from '@/services/gameClock';
 import { LifeSummaryResponse, TickResolution } from '@/types';
+import { CharacterCreator } from '@/components/CharacterCreator';
+import { CharacterProfile } from '@/components/CharacterProfile';
+
+type ActiveTab = 'creator' | 'profile' | 'architecture';
 
 export default function DestinyLandingPage() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('creator');
+
   // GameClock Service Instance
   const [clockService] = useState(() => new GameClockService(2026, 'YEARLY'));
   const [clockDisplay, setClockDisplay] = useState(clockService.formatDisplay());
 
-  // Form State for "New Life" Flow
-  const [username, setUsername] = useState('Player_Zero');
-  const [slotName, setSlotName] = useState('Slot Alpha');
-  const [characterName, setCharacterName] = useState('Julian Vance');
-  const [birthYear, setBirthYear] = useState(2000);
-  const [isDormant, setIsDormant] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<LifeSummaryResponse | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Active Life Summary State
+  const [activeLifeSummary, setActiveLifeSummary] = useState<LifeSummaryResponse | null>(null);
 
   // Probe formula engine evaluation
   const [probeOutcome] = useState(() =>
@@ -53,275 +52,188 @@ export default function DestinyLandingPage() {
     setClockDisplay(clockService.formatDisplay());
   };
 
-  const handleCreateLife = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg(null);
-
-    try {
-      const res = await fetch('/api/lives', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username,
-          slotName,
-          characterName,
-          birthYear,
-          isDormant,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to persist record.');
-      }
-
-      const data: LifeSummaryResponse = await res.json();
-      setSummary(data);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error executing New Life flow.');
-    } finally {
-      setLoading(false);
-    }
+  const handleCharacterCreated = (summary: LifeSummaryResponse) => {
+    setActiveLifeSummary(summary);
+    setActiveTab('profile');
   };
 
   return (
-    <main className="max-w-4xl mx-auto px-6 py-12 space-y-10">
-      {/* Header Badge */}
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+      {/* Header Badge & Title */}
       <header className="space-y-3">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0C3854]/60 border border-[#38BDF8]/30">
-          <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
-          <span className="text-xs font-semibold tracking-wider text-[#BAE6FD] uppercase">
-            Build 01 of 20 • Technical Foundation
-          </span>
-        </div>
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white">
-          DESTINY
-        </h1>
-        <p className="text-base text-[#94A3B8] font-normal">
-          Ultra-deep life simulation architecture • Infrastructure & Schema Initialization
-        </p>
-      </header>
-
-      {/* Core Architectural Pillars */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Formula Engine */}
-        <div className="bg-[#111723] border border-[#26354D] rounded-xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white">Formula Engine</h3>
-            <span className="text-xs font-bold text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded">
-              5 LAYERS
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0C3854]/60 border border-[#38BDF8]/30">
+            <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+            <span className="text-xs font-semibold tracking-wider text-[#BAE6FD] uppercase">
+              Project: Destiny • Master Build 02 of 20 • Character System
             </span>
           </div>
-          <p className="text-xs text-[#94A3B8] leading-relaxed">
-            Shared resolution engine: Foundation, Momentum, Influence, World Variables, and Luck.
-          </p>
-          <div className="bg-[#090D14] p-2.5 rounded text-xs font-mono text-[#38BDF8] flex justify-between">
-            <span>Sample Probe:</span>
-            <span>{probeOutcome.compositeScore}/100 ({probeOutcome.tier})</span>
+
+          <div className="text-xs font-mono text-slate-400 bg-[#0E1420] px-3 py-1 rounded-lg border border-[#26354D]">
+            Clock: <span className="text-[#38BDF8] font-bold">{clockDisplay}</span>
           </div>
         </div>
 
-        {/* GameClock Timekeeper */}
-        <div className="bg-[#111723] border border-[#26354D] rounded-xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white">GameClock</h3>
-            <span className="text-xs font-bold text-[#38BDF8] bg-[#0C3854] px-2 py-0.5 rounded">
-              VARIABLE
-            </span>
-          </div>
-          <p className="text-xs text-[#94A3B8] leading-relaxed">
-            Defaults to yearly ticks; dynamically accepts monthly/weekly zoom for active events.
-          </p>
-          <div className="flex items-center justify-between bg-[#090D14] p-2.5 rounded text-xs font-mono text-white">
-            <span>{clockDisplay}</span>
-            <button
-              onClick={handleAdvanceClock}
-              className="text-[#38BDF8] hover:underline font-semibold"
-            >
-              +1 Tick
-            </button>
-          </div>
-          <div className="flex gap-2 text-[10px]">
-            <button
-              onClick={() => handleResolutionChange('YEARLY')}
-              className="px-2 py-1 bg-[#182235] hover:bg-[#212C42] rounded text-[#94A3B8]"
-            >
-              Yearly
-            </button>
-            <button
-              onClick={() => handleResolutionChange('MONTHLY')}
-              className="px-2 py-1 bg-[#182235] hover:bg-[#212C42] rounded text-[#94A3B8]"
-            >
-              Monthly Zoom
-            </button>
-          </div>
-        </div>
-
-        {/* NPC Model & Karma Encapsulation */}
-        <div className="bg-[#111723] border border-[#26354D] rounded-xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white">NPC & Karma</h3>
-            <span className="text-xs font-bold text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded">
-              SECURED
-            </span>
-          </div>
-          <p className="text-xs text-[#94A3B8] leading-relaxed">
-            Dual states: Dormant (lightweight storage) vs. Active (full ticks). Raw karma hidden from client responses.
-          </p>
-          <div className="bg-[#090D14] p-2.5 rounded text-xs font-mono text-[#10B981]">
-            ✓ ClientCharacter strips Karma
-          </div>
-        </div>
-      </section>
-
-      {/* New Life Flow Form */}
-      <section className="bg-[#111723] border border-[#26354D] rounded-xl p-6 space-y-6">
-        <div className="border-b border-[#26354D] pb-4">
-          <h2 className="text-lg font-bold text-white tracking-wide">
-            NEW LIFE FLOW (END-TO-END WRITE VERIFICATION)
-          </h2>
-          <p className="text-xs text-[#94A3B8] mt-1">
-            Executes atomic write across User → SaveSlot → Life → Character entities.
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+            DESTINY
+          </h1>
+          <p className="text-xs text-slate-400">
+            Next.js & Kotlin Android Multiplatform Parity • Real-Time Life Simulation
           </p>
         </div>
 
-        <form onSubmit={handleCreateLife} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1">
-                1. Player Account Name (User)
-              </label>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 bg-[#090D14] border border-[#26354D] rounded-lg text-sm text-white focus:outline-none focus:border-[#38BDF8]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1">
-                2. Save Slot Name (SaveSlot)
-              </label>
-              <input
-                type="text"
-                required
-                value={slotName}
-                onChange={(e) => setSlotName(e.target.value)}
-                className="w-full px-3 py-2 bg-[#090D14] border border-[#26354D] rounded-lg text-sm text-white focus:outline-none focus:border-[#38BDF8]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1">
-                3. Subject Name (Life)
-              </label>
-              <input
-                type="text"
-                required
-                value={characterName}
-                onChange={(e) => setCharacterName(e.target.value)}
-                className="w-full px-3 py-2 bg-[#090D14] border border-[#26354D] rounded-lg text-sm text-white focus:outline-none focus:border-[#38BDF8]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#94A3B8] mb-1">
-                Birth Year
-              </label>
-              <input
-                type="number"
-                required
-                value={birthYear}
-                onChange={(e) => setBirthYear(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-[#090D14] border border-[#26354D] rounded-lg text-sm text-white focus:outline-none focus:border-[#38BDF8]"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 pt-2">
-            <label className="text-xs font-medium text-[#94A3B8]">
-              NPC Simulation Mode:
-            </label>
-            <button
-              type="button"
-              onClick={() => setIsDormant(!isDormant)}
-              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                isDormant
-                  ? 'bg-[#182235] text-[#94A3B8] border-[#26354D]'
-                  : 'bg-[#10B981]/20 text-[#10B981] border-[#10B981]/40 font-semibold'
-              }`}
-            >
-              {isDormant ? 'Dormant (Lightweight)' : 'Active (Simulated)'}
-            </button>
-          </div>
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 pt-2 border-b border-[#26354D]">
+          <button
+            onClick={() => setActiveTab('creator')}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+              activeTab === 'creator'
+                ? 'border-[#38BDF8] text-[#38BDF8]'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Character Creator (7-Step Flow)
+          </button>
 
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full sm:w-auto px-6 py-2.5 bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#021626] font-bold text-sm rounded-lg transition-colors disabled:opacity-50"
+            onClick={() => setActiveTab('profile')}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+              activeTab === 'profile'
+                ? 'border-[#38BDF8] text-[#38BDF8]'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
           >
-            {loading ? 'Committing to Database...' : 'Commit New Life Record'}
+            Character Profile & Aging {activeLifeSummary ? `(${activeLifeSummary.life.name})` : ''}
           </button>
-        </form>
 
-        {errorMsg && (
-          <div className="p-3 rounded-lg bg-[#F87171]/10 border border-[#F87171]/30 text-xs text-[#F87171]">
-            {errorMsg}
-          </div>
-        )}
+          <button
+            onClick={() => setActiveTab('architecture')}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+              activeTab === 'architecture'
+                ? 'border-[#38BDF8] text-[#38BDF8]'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Foundation Architecture (Prompt 01)
+          </button>
+        </div>
+      </header>
 
-        {/* Database Write Confirmation */}
-        {summary && (
-          <div className="mt-6 p-5 rounded-xl bg-[#090D14] border border-[#10B981]/40 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[#10B981] tracking-wider uppercase">
-                ✓ Database Write Confirmed
-              </span>
-              <span className="text-[10px] font-mono text-[#94A3B8]">
-                Prisma PostgreSQL / Room
-              </span>
+      {/* TAB 1: Character Creator */}
+      {activeTab === 'creator' && (
+        <CharacterCreator
+          onCharacterCreated={handleCharacterCreated}
+        />
+      )}
+
+      {/* TAB 2: Character Profile & Simulation */}
+      {activeTab === 'profile' && (
+        <div>
+          {activeLifeSummary ? (
+            <CharacterProfile
+              summary={activeLifeSummary}
+              onUpdateSummary={(upd) => setActiveLifeSummary(upd)}
+              onBackToCreator={() => setActiveTab('creator')}
+            />
+          ) : (
+            <div className="bg-[#111723] border border-[#26354D] rounded-2xl p-10 text-center space-y-4 max-w-xl mx-auto">
+              <div className="w-12 h-12 mx-auto rounded-full bg-[#38BDF8]/10 flex items-center justify-center text-xl">
+                👤
+              </div>
+              <h3 className="text-lg font-bold text-white">No Active Character Selected</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Initialize a subject via the 7-step Character Creator to begin the live life simulation with progressive aging, mortality checks, and attribute tracking.
+              </p>
+              <button
+                onClick={() => setActiveTab('creator')}
+                className="px-5 py-2.5 bg-[#38BDF8] text-[#090D14] font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-[#7DD3FC] transition-all"
+              >
+                Go to Character Creator
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: Foundation Architecture (Prompt 01) */}
+      {activeTab === 'architecture' && (
+        <div className="space-y-8">
+          {/* Core Architectural Pillars */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Formula Engine */}
+            <div className="bg-[#111723] border border-[#26354D] rounded-xl p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Formula Engine</h3>
+                <span className="text-xs font-bold text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded">
+                  5 LAYERS
+                </span>
+              </div>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                Foundation (35%), Momentum (20%), Influence (15%), World Variables (15%), Luck (15%).
+              </p>
+              <div className="bg-[#090D14] p-2.5 rounded text-xs font-mono text-[#38BDF8] flex justify-between">
+                <span>Sample Probe:</span>
+                <span className="font-bold">{probeOutcome.compositeScore.toFixed(2)} pts</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
-              <div className="p-2 bg-[#111723] rounded">
-                <span className="text-[#64748B] block text-[10px]">User PK</span>
-                <span className="text-white truncate block">{summary.user.id.slice(0, 10)}...</span>
+            {/* Game Clock */}
+            <div className="bg-[#111723] border border-[#26354D] rounded-xl p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Game Clock</h3>
+                <span className="text-xs font-bold text-[#38BDF8] bg-[#38BDF8]/10 px-2 py-0.5 rounded">
+                  VARIABLE RESOLUTION
+                </span>
               </div>
-              <div className="p-2 bg-[#111723] rounded">
-                <span className="text-[#64748B] block text-[10px]">Slot PK</span>
-                <span className="text-white truncate block">{summary.saveSlot.id.slice(0, 10)}...</span>
-              </div>
-              <div className="p-2 bg-[#111723] rounded">
-                <span className="text-[#64748B] block text-[10px]">Life PK</span>
-                <span className="text-white truncate block">{summary.life.id.slice(0, 10)}...</span>
-              </div>
-              <div className="p-2 bg-[#111723] rounded">
-                <span className="text-[#64748B] block text-[10px]">Character PK</span>
-                <span className="text-white truncate block">{summary.character.id.slice(0, 10)}...</span>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                Yearly default with contextual sub-ticks (Monthly, Weekly, Daily zoom).
+              </p>
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={handleAdvanceClock}
+                  className="px-3 py-1.5 bg-[#1E293B] hover:bg-[#334155] text-xs font-mono text-white rounded transition-colors"
+                >
+                  Advance Tick
+                </button>
+                <div className="flex gap-1">
+                  {(['YEARLY', 'MONTHLY', 'WEEKLY', 'DAILY'] as TickResolution[]).map((res) => (
+                    <button
+                      key={res}
+                      type="button"
+                      onClick={() => handleResolutionChange(res)}
+                      className={`text-[10px] px-1.5 py-1 rounded font-mono ${
+                        clockService.getState().resolution === res
+                          ? 'bg-[#38BDF8] text-[#021626] font-bold'
+                          : 'bg-[#182235] text-[#94A3B8]'
+                      }`}
+                    >
+                      {res[0]}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-[#1E293B]">
-              <span className="text-[11px] font-semibold text-[#94A3B8] block mb-2">
-                Generated Core Stats (Karma excluded from response):
-              </span>
-              <div className="grid grid-cols-4 gap-2 text-xs font-mono text-center">
-                <div className="bg-[#182235] p-1.5 rounded">INT: {summary.character.intelligence}</div>
-                <div className="bg-[#182235] p-1.5 rounded">DIS: {summary.character.discipline}</div>
-                <div className="bg-[#182235] p-1.5 rounded">WIL: {summary.character.willpower}</div>
-                <div className="bg-[#182235] p-1.5 rounded">AMB: {summary.character.ambition}</div>
-                <div className="bg-[#182235] p-1.5 rounded">HLT: {summary.character.health}</div>
-                <div className="bg-[#182235] p-1.5 rounded">LOK: {summary.character.looks}</div>
-                <div className="bg-[#182235] p-1.5 rounded">SMA: {summary.character.smarts}</div>
-                <div className="bg-[#182235] p-1.5 rounded">HAP: {summary.character.happiness}</div>
+            {/* Relational Hierarchy */}
+            <div className="bg-[#111723] border border-[#26354D] rounded-xl p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Relational Hierarchy</h3>
+                <span className="text-xs font-bold text-[#A855F7] bg-[#A855F7]/10 px-2 py-0.5 rounded">
+                  STRICT CASCADE
+                </span>
+              </div>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                User → SaveSlot (1:N) → Life (1:N) → Character (1:1). Karma stripped at boundary.
+              </p>
+              <div className="bg-[#090D14] p-2 rounded text-[11px] font-mono text-[#94A3B8] text-center">
+                User ➔ SaveSlot ➔ Life ➔ Character
               </div>
             </div>
-          </div>
-        )}
-      </section>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

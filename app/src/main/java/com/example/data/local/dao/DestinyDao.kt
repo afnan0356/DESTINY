@@ -73,6 +73,18 @@ interface DestinyDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCharacter(character: CharacterEntity)
 
+    @Update
+    suspend fun updateCharacter(character: CharacterEntity)
+
+    @Query("UPDATE characters SET health = :health, fertility = :fertility, energy = :energy, athleticPerformance = :athleticPerformance WHERE id = :characterId")
+    suspend fun updateCharacterAgingStats(
+        characterId: String,
+        health: Int,
+        fertility: Int,
+        energy: Int,
+        athleticPerformance: Int
+    )
+
     @Query("SELECT * FROM characters WHERE lifeId = :lifeId LIMIT 1")
     suspend fun getCharacterByLifeId(lifeId: String): CharacterEntity?
 
