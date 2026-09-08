@@ -176,4 +176,132 @@ class DestinyRepository(private val dao: DestinyDao) {
             charactersCount = lives
         )
     }
+
+    suspend fun getCharacterById(characterId: String): CharacterEntity? {
+        return dao.getCharacterById(characterId)
+    }
+
+    suspend fun getClientCharacterById(characterId: String): ClientCharacter? {
+        return dao.getCharacterById(characterId)?.toClientCharacter()
+    }
+
+    suspend fun updateCharacterBankBalance(characterId: String, newBalance: Long) {
+        dao.updateCharacterBankBalance(characterId, newBalance)
+    }
+
+    suspend fun saveRelationship(
+        characterId: String,
+        relatedCharacterId: String,
+        type: String,
+        relationshipStrength: Int,
+        status: String = "Active",
+        startedAt: Int,
+        endedAt: Int? = null,
+        sabotageChance: Double? = null,
+        id: String = "rel_${characterId}_${relatedCharacterId}"
+    ): com.example.data.model.Relationship {
+        val entity = com.example.data.local.entity.RelationshipEntity(
+            id = id,
+            characterId = characterId,
+            relatedCharacterId = relatedCharacterId,
+            type = type,
+            relationshipStrength = relationshipStrength,
+            status = status,
+            startedAt = startedAt,
+            endedAt = endedAt,
+            sabotageChance = sabotageChance
+        )
+        dao.insertRelationship(entity)
+        return com.example.data.model.Relationship(
+            id = entity.id,
+            characterId = entity.characterId,
+            relatedCharacterId = entity.relatedCharacterId,
+            type = entity.type,
+            relationshipStrength = entity.relationshipStrength,
+            status = entity.status,
+            startedAt = entity.startedAt,
+            endedAt = entity.endedAt,
+            sabotageChance = entity.sabotageChance,
+            relatedCharacter = getClientCharacterById(entity.relatedCharacterId)
+        )
+    }
+
+    suspend fun updateRelationshipStatus(
+        characterId: String,
+        relatedCharacterId: String,
+        newStatus: String,
+        endedAt: Int?
+    ) {
+        val existing = dao.getRelationship(characterId, relatedCharacterId)
+        if (existing != null) {
+            val updated = existing.copy(
+                status = newStatus,
+                endedAt = endedAt,
+                updatedAt = System.currentTimeMillis()
+            )
+            dao.updateRelationship(updated)
+        }
+    }
+
+    suspend fun getRelationships(characterId: String): List<com.example.data.model.Relationship> {
+        val entities = dao.getRelationshipsForCharacterList(characterId)
+        return entities.map { entity ->
+            com.example.data.model.Relationship(
+                id = entity.id,
+                characterId = entity.characterId,
+                relatedCharacterId = entity.relatedCharacterId,
+                type = entity.type,
+                relationshipStrength = entity.relationshipStrength,
+                status = entity.status,
+                startedAt = entity.startedAt,
+                endedAt = entity.endedAt,
+                sabotageChance = entity.sabotageChance,
+                relatedCharacter = getClientCharacterById(entity.relatedCharacterId),
+                createdAt = entity.createdAt,
+                updatedAt = entity.updatedAt
+            )
+        }
+    }
+
+    suspend fun logFamilyEvent(
+        characterId: String,
+        relatedCharacterId: String?,
+        eventType: String,
+        gameYear: Int,
+        description: String
+    ): com.example.data.model.FamilyEvent {
+        val entity = com.example.data.local.entity.FamilyEventEntity(
+            id = "fevent_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(4)}",
+            characterId = characterId,
+            relatedCharacterId = relatedCharacterId,
+            eventType = eventType,
+            gameYear = gameYear,
+            description = description
+        )
+        dao.insertFamilyEvent(entity)
+        return com.example.data.model.FamilyEvent(
+            id = entity.id,
+            characterId = entity.characterId,
+            relatedCharacterId = entity.relatedCharacterId,
+            eventType = entity.eventType,
+            gameYear = entity.gameYear,
+            description = entity.description,
+            createdAt = entity.createdAt
+        )
+    }
+
+    suspend fun getFamilyEvents(characterId: String): List<com.example.data.model.FamilyEvent> {
+        val entities = dao.getFamilyEventsForCharacterList(characterId)
+        return entities.map { entity ->
+            com.example.data.model.FamilyEvent(
+                id = entity.id,
+                characterId = entity.characterId,
+                relatedCharacterId = entity.relatedCharacterId,
+                eventType = entity.eventType,
+                gameYear = entity.gameYear,
+                description = entity.description,
+                createdAt = entity.createdAt
+            )
+        }
+    }
 }

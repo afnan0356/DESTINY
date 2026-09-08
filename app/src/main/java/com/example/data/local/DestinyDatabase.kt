@@ -8,7 +8,9 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.local.dao.DestinyDao
 import com.example.data.local.entity.CharacterEntity
+import com.example.data.local.entity.FamilyEventEntity
 import com.example.data.local.entity.LifeEntity
+import com.example.data.local.entity.RelationshipEntity
 import com.example.data.local.entity.SaveSlotEntity
 import com.example.data.local.entity.UserEntity
 
@@ -17,9 +19,11 @@ import com.example.data.local.entity.UserEntity
         UserEntity::class,
         SaveSlotEntity::class,
         LifeEntity::class,
-        CharacterEntity::class
+        CharacterEntity::class,
+        RelationshipEntity::class,
+        FamilyEventEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class DestinyDatabase : RoomDatabase() {

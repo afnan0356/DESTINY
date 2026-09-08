@@ -128,6 +128,40 @@ export function evaluateFormula({
   };
 }
 
+/**
+ * Derives Enemy sabotage chance from the enemy's Influence stat via FormulaEngine.
+ * Returns a percentage probability (5% to 75%).
+ */
+export function calculateEnemySabotageChance(enemyInfluenceInputs: Partial<InfluenceInputs>): number {
+  const socialCap = enemyInfluenceInputs.socialCapital ?? 50;
+  const familyLev = enemyInfluenceInputs.familyLeverage ?? 50;
+  const faction = enemyInfluenceInputs.factionStanding ?? 0;
+  const influenceScore = clamp((socialCap * 0.5) + (familyLev * 0.3) + ((faction + 100) * 0.1), 0, 100);
+
+  // Sabotage chance scales directly with enemy influence
+  const sabotageChance = clamp(5.0 + (influenceScore * 0.7), 5.0, 75.0);
+  return Number(sabotageChance.toFixed(2));
+}
+
+/**
+ * Calculates a child's genetic modifier using a real weighted blend of both parents' stats
+ * plus a random variance component pulled from the FormulaEngine's Luck layer.
+ */
+export function calculateGeneticModifier(
+  parent1Stat: number,
+  parent2Stat: number,
+  luckInputs: Partial<LuckInputs> = {}
+): number {
+  const parentAvg = (parent1Stat + parent2Stat) / 2;
+  const rawRoll = luckInputs.rawRoll ?? Math.random();
+  const karmaMod = luckInputs.karmaModifier ?? 0;
+  
+  // Luck layer variance: -10 to +10 range
+  const luckVariance = ((rawRoll - 0.5) * 20) + (karmaMod * 0.1);
+  const modifier = ((parentAvg - 50) * 0.4) + luckVariance;
+  return Number(clamp(modifier, -25, 25).toFixed(2));
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }

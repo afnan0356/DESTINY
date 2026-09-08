@@ -139,4 +139,29 @@ object FormulaEngine {
             isCritical = tier == OutcomeTier.CRITICAL_SUCCESS || tier == OutcomeTier.CRITICAL_FAILURE
         )
     }
+
+    /**
+     * Calculates sabotage chance for Enemy relationship derived from enemy's Influence stat.
+     * Sabotage chance ranges from 5.0% to 75.0% based on enemy influence.
+     */
+    fun calculateEnemySabotageChance(influence: Influence): Double {
+        val influenceScore = ((influence.socialCapital * 0.5) + (influence.familyLeverage * 0.3) + ((influence.factionReputation + 100.0) * 0.1)).coerceIn(0.0, 100.0)
+        return (5.0 + (influenceScore * 0.7)).coerceIn(5.0, 75.0)
+    }
+
+    /**
+     * Blends genetic modifiers for a child from both parents' stats + Luck layer variance.
+     * Evaluates a weighted blend of parents' corresponding stats, with a variance component
+     * pulled from the FormulaEngine's Luck layer (using luck.rawRoll and luck.karmaModifier).
+     */
+    fun calculateGeneticModifier(
+        parent1Stat: Double,
+        parent2Stat: Double,
+        luck: Luck = Luck()
+    ): Double {
+        val parentAvg = (parent1Stat + parent2Stat) / 2.0
+        val luckVariance = ((luck.rawRoll - 0.5) * 20.0) + (luck.karmaModifier * 0.1)
+        val modifier = ((parentAvg - 50.0) * 0.4) + luckVariance
+        return modifier.coerceIn(-25.0, 25.0)
+    }
 }

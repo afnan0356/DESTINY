@@ -49,6 +49,7 @@ data class CharacterEntity(
     val geneticLooksModifier: Double? = null,
     val birthCity: String = "New York",
     val birthCountry: String = "United States",
+    val bankBalance: Long = 1000L,
     // Hidden core stat: Persisted in database, but NEVER exposed to client / API models
     val karma: Int = 50
 )

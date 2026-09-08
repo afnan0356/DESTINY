@@ -14,6 +14,7 @@ import com.example.ui.screens.CharacterCreationScreen
 import com.example.ui.screens.CharacterProfileScreen
 import com.example.ui.screens.DestinyLandingScreen
 import com.example.ui.screens.NewLifeFlowScreen
+import com.example.ui.screens.RelationshipsScreen
 import com.example.ui.theme.DestinyTheme
 
 @Composable
@@ -33,6 +34,12 @@ fun DestinyApp(
     val deathCheckResult by viewModel.deathCheckResult.collectAsState()
     val simLogs by viewModel.simLogs.collectAsState()
     val isAging by viewModel.isAging.collectAsState()
+
+    // Prompt 03 Family States
+    val relationships by viewModel.relationships.collectAsState()
+    val familyEvents by viewModel.familyEvents.collectAsState()
+    val isFamilyActionLoading by viewModel.isFamilyActionLoading.collectAsState()
+    val familyActionMessage by viewModel.familyActionMessage.collectAsState()
 
     DestinyTheme {
         Surface(
@@ -69,11 +76,35 @@ fun DestinyApp(
                             simLogs = simLogs,
                             isAging = isAging,
                             onBack = { viewModel.navigateTo(DestinyScreen.Landing) },
-                            onAgeOneYear = { viewModel.ageActiveCharacter() }
+                            onAgeOneYear = { viewModel.ageActiveCharacter() },
+                            onOpenRelationships = { viewModel.navigateTo(DestinyScreen.Relationships(screen.lifeId)) }
                         )
                     } ?: run {
                         // Fallback if summary loading
                         viewModel.openCharacterProfile(screen.lifeId)
+                    }
+                }
+
+                is DestinyScreen.Relationships, is DestinyScreen.FamilyTree -> {
+                    val lifeId = if (screen is DestinyScreen.Relationships) screen.lifeId else (screen as DestinyScreen.FamilyTree).lifeId
+                    activeProfileSummary?.let { summary ->
+                        RelationshipsScreen(
+                            summary = summary,
+                            relationships = relationships,
+                            familyEvents = familyEvents,
+                            isLoading = isFamilyActionLoading,
+                            actionMessage = familyActionMessage,
+                            onBack = { viewModel.navigateTo(DestinyScreen.CharacterProfile(lifeId)) },
+                            onLoadData = { charId, year -> viewModel.loadFamilyData(charId, year) },
+                            onMarry = { cId, pId, yr -> viewModel.marry(cId, pId, yr) },
+                            onDivorce = { cId, pId, yr -> viewModel.divorce(cId, pId, yr) },
+                            onHaveChild = { p1, p2, name, yr -> viewModel.haveChild(p1, p2, name, yr) },
+                            onAddEnemy = { cId, name, yr -> viewModel.addEnemy(cId, name, yr) },
+                            onTriggerInheritance = { cId, yr -> viewModel.triggerInheritance(cId, yr) },
+                            onClearMessage = { viewModel.clearFamilyActionMessage() }
+                        )
+                    } ?: run {
+                        viewModel.openCharacterProfile(lifeId)
                     }
                 }
 

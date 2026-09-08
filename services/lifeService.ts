@@ -1,8 +1,9 @@
 /**
- * LIFE SERVICE & PERSISTENCE ORCHESTRATOR (Prompt 01 of 20: FOUNDATION)
+ * LIFE SERVICE & FIRESTORE PERSISTENCE ORCHESTRATOR
+ * Master Build Prompts 01-03: FOUNDATION, CHARACTER SYSTEM, FAMILY SYSTEM
  *
  * Core service managing:
- * 1. Life creation pipeline (User -> SaveSlot -> Life -> Character)
+ * 1. Life creation pipeline (User -> SaveSlot -> Life -> Character) in Firestore
  * 2. Unlimited save slots per user
  * 3. NPC Simulation Model:
  *    - 'dormant': Lightweight. Stats stored in DB, but not actively ticked year-to-year.
@@ -10,12 +11,26 @@
  * 4. Karma Privacy Mandate: Strips karma from all client-facing responses.
  */
 
-import { prisma } from '../lib/prisma';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import {
   Character,
   ClientCharacter,
   CreateLifeInput,
+  Life,
   LifeSummaryResponse,
+  SaveSlot,
+  User,
 } from '../types';
 
 export class LifeService {
@@ -29,7 +44,7 @@ export class LifeService {
   }
 
   /**
-   * Atomic creation flow:
+   * Atomic creation flow in Firestore:
    * User → SaveSlot → Life → Character
    */
   public static async createNewLife(input: CreateLifeInput): Promise<LifeSummaryResponse> {
@@ -68,103 +83,148 @@ export class LifeService {
       geneticLooksModifier = null,
     } = input;
 
-    // Use Prisma interactive transaction for atomic execution across all 4 models
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Ensure or create User account
-      const user = await tx.user.upsert({
-        where: { username },
-        update: {},
-        create: { username },
-      });
+    const userId = `user_${username.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    const userRef = doc(db, 'users', userId);
 
-      // 2. Create SaveSlot under User (unlimited save slots supported)
-      const saveSlot = await tx.saveSlot.create({
-        data: {
-          userId: user.id,
-          slotName: slotName || `Save Slot ${Date.now()}`,
-        },
-      });
+    // 1. Ensure User entity
+    const userSnap = await getDoc(userRef);
+    let userData: User;
+    const now = new Date();
 
-      // 3. Create Life entity attached to SaveSlot
-      const life = await tx.life.create({
-        data: {
-          saveSlotId: saveSlot.id,
-          name: characterName,
-          birthYear,
-          currentAge: 0,
-          isDormant,
-        },
+    if (userSnap.exists()) {
+      userData = userSnap.data() as User;
+    } else {
+      userData = {
+        id: userId,
+        username,
+        email: `${username.toLowerCase()}@destiny.game`,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await setDoc(userRef, {
+        ...userData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
+    }
 
-      // 4. Create Character entity attached to Life
-      // Generates baseline intrinsic stats and internal hidden karma
-      const character = await tx.character.create({
-        data: {
-          lifeId: life.id,
-          intelligence,
-          discipline,
-          willpower,
-          ambition,
-          health,
-          looks,
-          smarts,
-          happiness,
-          fertility,
-          energy,
-          athleticPerformance,
-          gender,
-          sexuality,
-          talent,
-          eyeStyle,
-          eyeColor,
-          skinTone,
-          browStyle,
-          facialHairStyle,
-          facialHairColor,
-          hairStyle,
-          hairColor,
-          geneticHealthModifier,
-          geneticIntelligenceModifier,
-          geneticLooksModifier,
-          birthCity,
-          birthCountry,
-          karma: randomStat(30, 80), // Stored in DB, never exposed to client
-        },
-      });
+    // 2. SaveSlot Entity
+    const saveSlotId = `slot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const saveSlotRef = doc(db, 'saveSlots', saveSlotId);
+    const saveSlotData: SaveSlot = {
+      id: saveSlotId,
+      userId: userData.id,
+      slotName: slotName || `Save Slot ${Date.now()}`,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await setDoc(saveSlotRef, {
+      ...saveSlotData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
 
-      return { user, saveSlot, life, character };
+    // 3. Life Entity
+    const lifeId = `life_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const lifeRef = doc(db, 'lives', lifeId);
+    const lifeData: Life = {
+      id: lifeId,
+      saveSlotId: saveSlotData.id,
+      name: characterName,
+      birthYear,
+      currentAge: 0,
+      isDormant,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await setDoc(lifeRef, {
+      ...lifeData,
+      userId: userData.id,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // 4. Character Entity
+    const characterId = `char_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const charRef = doc(db, 'characters', characterId);
+    const characterData: Character = {
+      id: characterId,
+      lifeId: lifeData.id,
+      intelligence,
+      discipline,
+      willpower,
+      ambition,
+      health,
+      looks,
+      smarts,
+      happiness,
+      fertility,
+      energy,
+      athleticPerformance,
+      gender,
+      sexuality,
+      talent,
+      eyeStyle,
+      eyeColor,
+      skinTone,
+      browStyle,
+      facialHairStyle,
+      facialHairColor,
+      hairStyle,
+      hairColor,
+      geneticHealthModifier,
+      geneticIntelligenceModifier,
+      geneticLooksModifier,
+      birthCity,
+      birthCountry,
+      bankBalance: 1000, // Starting baseline bank balance
+      karma: randomStat(30, 80), // HIDDEN server-side
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await setDoc(charRef, {
+      ...characterData,
+      userId: userData.id,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
 
     return {
-      user: result.user,
-      saveSlot: result.saveSlot,
-      life: result.life,
-      character: this.toClientCharacter(result.character),
+      user: userData,
+      saveSlot: saveSlotData,
+      life: lifeData,
+      character: this.toClientCharacter(characterData),
     };
   }
 
   /**
-   * Updates character stats (e.g. from AgingService).
+   * Updates character stats (e.g. from AgingService or Family events).
    */
   public static async updateCharacterStats(
     characterId: string,
     updates: Partial<Character>
   ): Promise<ClientCharacter> {
     const { karma, ...allowedUpdates } = updates;
-    const updated = await prisma.character.update({
-      where: { id: characterId },
-      data: allowedUpdates,
+    const charRef = doc(db, 'characters', characterId);
+    await updateDoc(charRef, {
+      ...allowedUpdates,
+      updatedAt: serverTimestamp(),
     });
-    return this.toClientCharacter(updated);
+
+    const updatedSnap = await getDoc(charRef);
+    const character = updatedSnap.data() as Character;
+    return this.toClientCharacter(character);
   }
 
   /**
    * Updates life age.
    */
   public static async updateLifeAge(lifeId: string, currentAge: number): Promise<void> {
-    await prisma.life.update({
-      where: { id: lifeId },
-      data: { currentAge },
+    const lifeRef = doc(db, 'lives', lifeId);
+    await updateDoc(lifeRef, {
+      currentAge,
+      updatedAt: serverTimestamp(),
     });
   }
 
@@ -172,23 +232,38 @@ export class LifeService {
    * Retrieves life details with karma stripped.
    */
   public static async getLifeById(lifeId: string): Promise<LifeSummaryResponse | null> {
-    const life = await prisma.life.findUnique({
-      where: { id: lifeId },
-      include: {
-        saveSlot: {
-          include: { user: true },
-        },
-        character: true,
-      },
-    });
+    const lifeRef = doc(db, 'lives', lifeId);
+    const lifeSnap = await getDoc(lifeRef);
+    if (!lifeSnap.exists()) return null;
+    const life = lifeSnap.data() as Life;
 
-    if (!life || !life.character) return null;
+    // Fetch saveSlot
+    const slotRef = doc(db, 'saveSlots', life.saveSlotId);
+    const slotSnap = await getDoc(slotRef);
+    const saveSlot = slotSnap.exists()
+      ? (slotSnap.data() as SaveSlot)
+      : ({ id: life.saveSlotId, userId: '', slotName: 'Default', createdAt: new Date(), updatedAt: new Date() });
+
+    // Fetch user
+    const userRef = doc(db, 'users', saveSlot.userId);
+    const userSnap = await getDoc(userRef);
+    const user = userSnap.exists()
+      ? (userSnap.data() as User)
+      : ({ id: saveSlot.userId, username: 'Player', createdAt: new Date(), updatedAt: new Date() });
+
+    // Fetch character by lifeId
+    const charQ = query(collection(db, 'characters'), where('lifeId', '==', lifeId));
+    const charDocs = await getDocs(charQ);
+    if (charDocs.empty) return null;
+
+    const charDoc = charDocs.docs[0];
+    const character = charDoc.data() as Character;
 
     return {
-      user: life.saveSlot.user,
-      saveSlot: life.saveSlot,
+      user,
+      saveSlot,
       life,
-      character: this.toClientCharacter(life.character),
+      character: this.toClientCharacter(character),
     };
   }
 
@@ -196,10 +271,21 @@ export class LifeService {
    * Transitions NPC between Dormant and Active simulation states.
    */
   public static async setNpcDormancy(lifeId: string, isDormant: boolean) {
-    return prisma.life.update({
-      where: { id: lifeId },
-      data: { isDormant },
+    const lifeRef = doc(db, 'lives', lifeId);
+    await updateDoc(lifeRef, {
+      isDormant,
+      updatedAt: serverTimestamp(),
     });
+
+    // Also update associated character isDormant if exists
+    const charQ = query(collection(db, 'characters'), where('lifeId', '==', lifeId));
+    const charDocs = await getDocs(charQ);
+    for (const docItem of charDocs.docs) {
+      await updateDoc(docItem.ref, {
+        isDormant,
+        updatedAt: serverTimestamp(),
+      });
+    }
   }
 
   /**

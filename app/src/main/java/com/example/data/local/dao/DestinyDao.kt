@@ -91,6 +91,35 @@ interface DestinyDao {
     @Query("SELECT * FROM characters WHERE id = :characterId LIMIT 1")
     suspend fun getCharacterById(characterId: String): CharacterEntity?
 
+    @Query("UPDATE characters SET bankBalance = :newBalance WHERE id = :characterId")
+    suspend fun updateCharacterBankBalance(characterId: String, newBalance: Long)
+
+    // --- Relationship Operations ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRelationship(relationship: com.example.data.local.entity.RelationshipEntity)
+
+    @Update
+    suspend fun updateRelationship(relationship: com.example.data.local.entity.RelationshipEntity)
+
+    @Query("SELECT * FROM relationships WHERE characterId = :characterId")
+    fun getRelationshipsForCharacter(characterId: String): Flow<List<com.example.data.local.entity.RelationshipEntity>>
+
+    @Query("SELECT * FROM relationships WHERE characterId = :characterId")
+    suspend fun getRelationshipsForCharacterList(characterId: String): List<com.example.data.local.entity.RelationshipEntity>
+
+    @Query("SELECT * FROM relationships WHERE characterId = :characterId AND relatedCharacterId = :relatedId LIMIT 1")
+    suspend fun getRelationship(characterId: String, relatedId: String): com.example.data.local.entity.RelationshipEntity?
+
+    // --- Family Event Operations ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFamilyEvent(event: com.example.data.local.entity.FamilyEventEntity)
+
+    @Query("SELECT * FROM family_events WHERE characterId = :characterId ORDER BY gameYear DESC, createdAt DESC")
+    fun getFamilyEventsForCharacter(characterId: String): Flow<List<com.example.data.local.entity.FamilyEventEntity>>
+
+    @Query("SELECT * FROM family_events WHERE characterId = :characterId ORDER BY gameYear DESC, createdAt DESC")
+    suspend fun getFamilyEventsForCharacterList(characterId: String): List<com.example.data.local.entity.FamilyEventEntity>
+
     // --- Atomic Compound Creation ---
     @Transaction
     suspend fun createNewLifeCompound(

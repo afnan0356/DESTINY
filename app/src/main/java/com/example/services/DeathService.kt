@@ -24,6 +24,30 @@ data class DeathCheckResult(
     val roll: Double
 )
 
+data class RelationshipSnapshot(
+    val characterId: String,
+    val relatedCharacterId: String,
+    val type: String,
+    val status: String
+)
+
+data class InheritanceBeneficiary(
+    val characterId: String,
+    val amount: Long,
+    val role: String
+)
+
+data class InheritanceResult(
+    val deceasedCharacterId: String,
+    val totalDistributed: Long,
+    val perChildShare: Long = 0L,
+    val livingChildrenCount: Int = 0,
+    val inheritedBySpouse: Boolean = false,
+    val transferredToEstate: Boolean = false,
+    val beneficiaries: List<InheritanceBeneficiary> = emptyList(),
+    val description: String
+)
+
 object DeathService {
 
     fun calculateMortalityProbability(
@@ -113,5 +137,74 @@ object DeathService {
             mortalityProbability = adjustedProbability,
             roll = roll
         )
+    }
+
+    /**
+     * INHERITANCE HOOK (Prompt 03)
+     * Resolves distribution of deceased's bankBalance:
+     * - Splits equally among living Child relationships
+     * - If no living children, inherits to living spouse
+     * - Otherwise transfers to placeholder "Estate"
+     */
+    fun resolveInheritance(
+        deceasedCharacterId: String,
+        bankBalance: Long,
+        relationships: List<RelationshipSnapshot>
+    ): InheritanceResult {
+        val livingChildren = relationships.filter { it.type == "Child" && it.status == "Active" }
+        val livingSpouse = relationships.find { it.type == "Spouse" && it.status == "Active" }
+
+        return when {
+            livingChildren.isNotEmpty() -> {
+                val perChild = bankBalance / livingChildren.size
+                val beneficiaries = livingChildren.map {
+                    InheritanceBeneficiary(
+                        characterId = it.relatedCharacterId,
+                        amount = perChild,
+                        role = "Child"
+                    )
+                }
+                InheritanceResult(
+                    deceasedCharacterId = deceasedCharacterId,
+                    totalDistributed = perChild * livingChildren.size,
+                    perChildShare = perChild,
+                    livingChildrenCount = livingChildren.size,
+                    inheritedBySpouse = false,
+                    transferredToEstate = false,
+                    beneficiaries = beneficiaries,
+                    description = "Estate of $$bankBalance divided equally among ${livingChildren.size} living children ($$perChild each)."
+                )
+            }
+            livingSpouse != null -> {
+                InheritanceResult(
+                    deceasedCharacterId = deceasedCharacterId,
+                    totalDistributed = bankBalance,
+                    perChildShare = 0L,
+                    livingChildrenCount = 0,
+                    inheritedBySpouse = true,
+                    transferredToEstate = false,
+                    beneficiaries = listOf(
+                        InheritanceBeneficiary(
+                            characterId = livingSpouse.relatedCharacterId,
+                            amount = bankBalance,
+                            role = "Spouse"
+                        )
+                    ),
+                    description = "Estate of $$bankBalance inherited entirely by surviving spouse."
+                )
+            }
+            else -> {
+                InheritanceResult(
+                    deceasedCharacterId = deceasedCharacterId,
+                    totalDistributed = 0L,
+                    perChildShare = 0L,
+                    livingChildrenCount = 0,
+                    inheritedBySpouse = false,
+                    transferredToEstate = true,
+                    beneficiaries = emptyList(),
+                    description = "[Estate Placeholder] No living heirs. $$bankBalance transferred to Estate holding."
+                )
+            }
+        }
     }
 }

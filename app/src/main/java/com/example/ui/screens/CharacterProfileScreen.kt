@@ -68,7 +68,8 @@ fun CharacterProfileScreen(
     simLogs: List<SimulationLogItem>,
     isAging: Boolean,
     onBack: () -> Unit,
-    onAgeOneYear: () -> Unit
+    onAgeOneYear: () -> Unit,
+    onOpenRelationships: () -> Unit
 ) {
     val life = summary.life
     val character = summary.clientCharacter
@@ -101,27 +102,47 @@ fun CharacterProfileScreen(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            if (isDead) Color(0xFFEF4444).copy(alpha = 0.15f)
-                            else DestinySuccess.copy(alpha = 0.15f)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(DestinySurfaceVariant)
+                            .border(1.dp, DestinyOutline, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "$${character.bankBalance}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = DestinySuccess,
+                            fontFamily = FontFamily.Monospace
                         )
-                        .border(
-                            1.dp,
-                            if (isDead) Color(0xFFEF4444).copy(alpha = 0.4f)
-                            else DestinySuccess.copy(alpha = 0.4f),
-                            RoundedCornerShape(20.dp)
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                if (isDead) Color(0xFFEF4444).copy(alpha = 0.15f)
+                                else DestinySuccess.copy(alpha = 0.15f)
+                            )
+                            .border(
+                                1.dp,
+                                if (isDead) Color(0xFFEF4444).copy(alpha = 0.4f)
+                                else DestinySuccess.copy(alpha = 0.4f),
+                                RoundedCornerShape(20.dp)
+                            )
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (isDead) "DECEASED" else "ACTIVE LIFE",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDead) Color(0xFFF87171) else DestinySuccess
                         )
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = if (isDead) "DECEASED" else "ACTIVE LIFE",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDead) Color(0xFFF87171) else DestinySuccess
-                    )
+                    }
                 }
             }
         }
@@ -237,6 +258,22 @@ fun CharacterProfileScreen(
                             },
                             fontWeight = FontWeight.Bold,
                             color = if (isDead) DestinyTextMuted else MaterialTheme.colorScheme.background
+                        )
+                    }
+
+                    // Relationships & Family Action Button
+                    OutlinedButton(
+                        onClick = onOpenRelationships,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("open_relationships_button"),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(
+                            text = "Relationships & Family Circle",
+                            fontWeight = FontWeight.SemiBold,
+                            color = DestinyPrimary
                         )
                     }
                 }

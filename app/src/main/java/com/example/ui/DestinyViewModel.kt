@@ -25,6 +25,8 @@ sealed interface DestinyScreen {
     data object Landing : DestinyScreen
     data object CharacterCreation : DestinyScreen
     data class CharacterProfile(val lifeId: String) : DestinyScreen
+    data class Relationships(val lifeId: String) : DestinyScreen
+    data class FamilyTree(val lifeId: String) : DestinyScreen
     data object NewLifeFlow : DestinyScreen
     data object ArchitectureSpec : DestinyScreen
 }
@@ -45,6 +47,7 @@ class DestinyViewModel(application: Application) : AndroidViewModel(application)
     private val db = DestinyDatabase.getDatabase(application)
     private val repository = DestinyRepository(db.destinyDao())
     val lifeService = LifeService(repository)
+    val familyService = com.example.services.FamilyService(repository)
     val gameClock = GameClock(initialYear = 2026, initialResolution = GameClock.TickResolution.YEARLY)
 
     val allLives: StateFlow<List<LifeEntity>> = repository.allLives.stateIn(
@@ -83,6 +86,19 @@ class DestinyViewModel(application: Application) : AndroidViewModel(application)
 
     private val _isAging = MutableStateFlow(false)
     val isAging: StateFlow<Boolean> = _isAging.asStateFlow()
+
+    // --- Prompt 03 Family System State ---
+    private val _relationships = MutableStateFlow<List<com.example.data.model.Relationship>>(emptyList())
+    val relationships: StateFlow<List<com.example.data.model.Relationship>> = _relationships.asStateFlow()
+
+    private val _familyEvents = MutableStateFlow<List<com.example.data.model.FamilyEvent>>(emptyList())
+    val familyEvents: StateFlow<List<com.example.data.model.FamilyEvent>> = _familyEvents.asStateFlow()
+
+    private val _isFamilyActionLoading = MutableStateFlow(false)
+    val isFamilyActionLoading: StateFlow<Boolean> = _isFamilyActionLoading.asStateFlow()
+
+    private val _familyActionMessage = MutableStateFlow<String?>(null)
+    val familyActionMessage: StateFlow<String?> = _familyActionMessage.asStateFlow()
 
     init {
         // Evaluate initial sample through FormulaEngine to verify pipeline
@@ -313,9 +329,247 @@ class DestinyViewModel(application: Application) : AndroidViewModel(application)
                     isFatal = deathResult.isDead
                 )
                 _simLogs.value = listOf(newLog) + _simLogs.value
+
+                // If fatal, run inheritance hook automatically!
+                if (deathResult.isDead) {
+                    try {
+                        val inheritanceResult = familyService.executeInheritance(character.id, simYear)
+                        val inheritanceLog = SimulationLogItem(
+                            id = "inherit-${System.currentTimeMillis()}",
+                            year = simYear,
+                            age = nextAge,
+                            narrative = inheritanceResult.description
+                        )
+                        _simLogs.value = listOf(inheritanceLog) + _simLogs.value
+                    } catch (_: Exception) {}
+                }
             } finally {
                 _isAging.value = false
             }
         }
+    }
+
+    // --- Prompt 03 Family System Methods ---
+
+    fun loadFamilyData(characterId: String, currentYear: Int = 2026) {
+        viewModelScope.launch {
+            _isFamilyActionLoading.value = true
+            try {
+                var currentRels = familyService.getRelationships(characterId)
+                if (currentRels.isEmpty()) {
+                    // Seed initial family circle (Parents & Friend)
+                    seedInitialFamily(characterId, currentYear)
+                    currentRels = familyService.getRelationships(characterId)
+                }
+                _relationships.value = currentRels
+                _familyEvents.value = familyService.getFamilyEvents(characterId)
+            } finally {
+                _isFamilyActionLoading.value = false
+            }
+        }
+    }
+
+    private suspend fun seedInitialFamily(characterId: String, currentYear: Int) {
+        val mainChar = repository.getCharacterById(characterId) ?: return
+
+        // 1. Father (Dormant NPC)
+        val fatherSummary = repository.createNewLife(
+            playerName = "Player_Dad",
+            saveSlotName = "FamilySlot",
+            characterName = "Arthur ${mainChar.birthCountry.take(4)}",
+            birthYear = currentYear - 48,
+            isDormant = true,
+            birthCountry = mainChar.birthCountry,
+            birthCity = mainChar.birthCity,
+            gender = "Male",
+            health = 75,
+            intelligence = 70,
+            looks = 65
+        )
+        repository.saveRelationship(
+            characterId = characterId,
+            relatedCharacterId = fatherSummary.clientCharacter.id,
+            type = "Parent",
+            relationshipStrength = 90,
+            status = "Active",
+            startedAt = currentYear - 20
+        )
+        repository.saveRelationship(
+            characterId = fatherSummary.clientCharacter.id,
+            relatedCharacterId = characterId,
+            type = "Child",
+            relationshipStrength = 95,
+            status = "Active",
+            startedAt = currentYear - 20
+        )
+
+        // 2. Mother (Dormant NPC)
+        val motherSummary = repository.createNewLife(
+            playerName = "Player_Mom",
+            saveSlotName = "FamilySlot",
+            characterName = "Eleanor ${mainChar.birthCountry.take(4)}",
+            birthYear = currentYear - 46,
+            isDormant = true,
+            birthCountry = mainChar.birthCountry,
+            birthCity = mainChar.birthCity,
+            gender = "Female",
+            health = 80,
+            intelligence = 78,
+            looks = 70
+        )
+        repository.saveRelationship(
+            characterId = characterId,
+            relatedCharacterId = motherSummary.clientCharacter.id,
+            type = "Parent",
+            relationshipStrength = 92,
+            status = "Active",
+            startedAt = currentYear - 20
+        )
+        repository.saveRelationship(
+            characterId = motherSummary.clientCharacter.id,
+            relatedCharacterId = characterId,
+            type = "Child",
+            relationshipStrength = 98,
+            status = "Active",
+            startedAt = currentYear - 20
+        )
+
+        // 3. Close Friend / Potential Partner (Dormant NPC)
+        val friendSummary = repository.createNewLife(
+            playerName = "Player_Partner",
+            saveSlotName = "FamilySlot",
+            characterName = if (mainChar.gender == "Male") "Sophia Sterling" else "Liam Sterling",
+            birthYear = currentYear - 22,
+            isDormant = true, // Starts dormant; marriage promotes to active!
+            birthCountry = mainChar.birthCountry,
+            birthCity = mainChar.birthCity,
+            gender = if (mainChar.gender == "Male") "Female" else "Male",
+            health = 88,
+            intelligence = 82,
+            looks = 85
+        )
+        repository.saveRelationship(
+            characterId = characterId,
+            relatedCharacterId = friendSummary.clientCharacter.id,
+            type = "BestFriend",
+            relationshipStrength = 85,
+            status = "Active",
+            startedAt = currentYear - 5
+        )
+
+        repository.logFamilyEvent(
+            characterId = characterId,
+            relatedCharacterId = null,
+            eventType = "FamilyCircle",
+            gameYear = currentYear,
+            description = "Established close family and social circle."
+        )
+    }
+
+    fun marry(characterId: String, partnerCharacterId: String, gameYear: Int) {
+        viewModelScope.launch {
+            _isFamilyActionLoading.value = true
+            try {
+                val result = familyService.marry(characterId, partnerCharacterId, gameYear)
+                _familyActionMessage.value = "✓ Marriage successful! ${if (result.promotedFromDormant) "Partner promoted from Dormant to Active." else ""}"
+                loadFamilyData(characterId, gameYear)
+                // Refresh character profile if currently active
+                val life = _activeProfileSummary.value?.life
+                if (life != null) {
+                    _activeProfileSummary.value = lifeService.getLifeDetails(life.id)
+                }
+            } catch (e: Exception) {
+                _familyActionMessage.value = "Error during marriage: ${e.localizedMessage}"
+            } finally {
+                _isFamilyActionLoading.value = false
+            }
+        }
+    }
+
+    fun divorce(characterId: String, partnerCharacterId: String, gameYear: Int) {
+        viewModelScope.launch {
+            _isFamilyActionLoading.value = true
+            try {
+                val result = familyService.divorce(characterId, partnerCharacterId, gameYear)
+                _familyActionMessage.value = "✓ Divorce finalized. Assets split 50/50 ($${result.characterBalance.toString()} each). Now recorded as Ex."
+                loadFamilyData(characterId, gameYear)
+                // Refresh profile balance
+                val life = _activeProfileSummary.value?.life
+                if (life != null) {
+                    _activeProfileSummary.value = lifeService.getLifeDetails(life.id)
+                }
+            } catch (e: Exception) {
+                _familyActionMessage.value = "Error during divorce: ${e.localizedMessage}"
+            } finally {
+                _isFamilyActionLoading.value = false
+            }
+        }
+    }
+
+    fun haveChild(parent1Id: String, parent2Id: String, childName: String, gameYear: Int) {
+        viewModelScope.launch {
+            _isFamilyActionLoading.value = true
+            try {
+                val result = familyService.haveChild(parent1Id, parent2Id, childName, gameYear)
+                _familyActionMessage.value = "👶 Welcomed ${result.child.id}! Genetic modifiers: Health (${result.child.geneticHealthModifier}), Int (${result.child.geneticIntelligenceModifier}), Looks (${result.child.geneticLooksModifier})."
+                loadFamilyData(parent1Id, gameYear)
+            } catch (e: Exception) {
+                _familyActionMessage.value = "Error having child: ${e.localizedMessage}"
+            } finally {
+                _isFamilyActionLoading.value = false
+            }
+        }
+    }
+
+    fun addEnemy(characterId: String, name: String, gameYear: Int) {
+        viewModelScope.launch {
+            _isFamilyActionLoading.value = true
+            try {
+                val enemyChar = repository.createNewLife(
+                    playerName = "Enemy_NPC",
+                    saveSlotName = "EnemySlot",
+                    characterName = name,
+                    birthYear = gameYear - 25,
+                    isDormant = true,
+                    health = 70,
+                    intelligence = 75
+                )
+                val rel = familyService.addEnemy(
+                    characterId = characterId,
+                    enemyCharacterId = enemyChar.clientCharacter.id,
+                    gameYear = gameYear,
+                    enemyInfluence = FormulaEngine.Influence(socialCapital = 65.0, familyLeverage = 60.0)
+                )
+                _familyActionMessage.value = "⚠️ Enemy added! Sabotage chance: ${rel.sabotageChance}% (calculated via FormulaEngine Influence layer)."
+                loadFamilyData(characterId, gameYear)
+            } catch (e: Exception) {
+                _familyActionMessage.value = "Error adding enemy: ${e.localizedMessage}"
+            } finally {
+                _isFamilyActionLoading.value = false
+            }
+        }
+    }
+
+    fun triggerInheritance(deceasedCharacterId: String, gameYear: Int) {
+        viewModelScope.launch {
+            _isFamilyActionLoading.value = true
+            try {
+                val result = familyService.executeInheritance(deceasedCharacterId, gameYear)
+                _familyActionMessage.value = "✓ Inheritance executed: ${result.description}"
+                loadFamilyData(deceasedCharacterId, gameYear)
+                val life = _activeProfileSummary.value?.life
+                if (life != null) {
+                    _activeProfileSummary.value = lifeService.getLifeDetails(life.id)
+                }
+            } catch (e: Exception) {
+                _familyActionMessage.value = "Error executing inheritance: ${e.localizedMessage}"
+            } finally {
+                _isFamilyActionLoading.value = false
+            }
+        }
+    }
+
+    fun clearFamilyActionMessage() {
+        _familyActionMessage.value = null
     }
 }

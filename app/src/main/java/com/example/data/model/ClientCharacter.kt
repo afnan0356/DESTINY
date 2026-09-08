@@ -38,7 +38,8 @@ data class ClientCharacter(
     val geneticIntelligenceModifier: Double? = null,
     val geneticLooksModifier: Double? = null,
     val birthCity: String,
-    val birthCountry: String
+    val birthCountry: String,
+    val bankBalance: Long = 1000L
 )
 
 fun CharacterEntity.toClientCharacter(): ClientCharacter = ClientCharacter(
@@ -70,6 +71,7 @@ fun CharacterEntity.toClientCharacter(): ClientCharacter = ClientCharacter(
     geneticIntelligenceModifier = geneticIntelligenceModifier,
     geneticLooksModifier = geneticLooksModifier,
     birthCity = birthCity,
-    birthCountry = birthCountry
+    birthCountry = birthCountry,
+    bankBalance = bankBalance
     // ARCHITECTURAL MANDATE: karma is intentionally and strictly NOT mapped here!
 )

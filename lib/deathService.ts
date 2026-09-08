@@ -15,7 +15,7 @@
  */
 
 import { evaluateFormula } from './formulaEngine';
-import { DeathCheckResult } from '../types';
+import { DeathCheckResult, InheritanceResult } from '../types';
 
 export interface DeathCheckOptions {
   lifestyleModifier?: number; // -0.2 (very healthy lifestyle) to +0.2 (reckless/hazardous)
@@ -141,6 +141,74 @@ export class DeathService {
       cause,
       mortalityProbability: Number(adjustedProbability.toFixed(5)),
       roll: Number(roll.toFixed(5)),
+    };
+  }
+
+  /**
+   * INHERITANCE HOOK (Prompt 03)
+   * Resolves asset distribution upon death:
+   * - Splits bankBalance equally among living Child relationships.
+   * - If no living children, inherits to living spouse if one exists.
+   * - Otherwise logs to placeholder "Estate".
+   */
+  public static resolveInheritance(
+    deceasedCharacterId: string,
+    bankBalance: number,
+    relationships: Array<{ characterId: string; relatedCharacterId: string; type: string; status: string }>
+  ): InheritanceResult {
+    const livingChildren = relationships.filter(
+      (r) => r.type === 'Child' && r.status === 'Active'
+    );
+    const livingSpouse = relationships.find(
+      (r) => r.type === 'Spouse' && r.status === 'Active'
+    );
+
+    if (livingChildren.length > 0) {
+      const perChildShare = Math.floor(bankBalance / livingChildren.length);
+      const beneficiaries = livingChildren.map((child) => ({
+        characterId: child.relatedCharacterId,
+        amount: perChildShare,
+        role: 'Child',
+      }));
+      return {
+        deceasedCharacterId,
+        totalDistributed: perChildShare * livingChildren.length,
+        perChildShare,
+        livingChildrenCount: livingChildren.length,
+        inheritedBySpouse: false,
+        transferredToEstate: false,
+        beneficiaries,
+        description: `Estate of $${bankBalance.toLocaleString()} divided equally among ${livingChildren.length} living children ($${perChildShare.toLocaleString()} each).`,
+      };
+    }
+
+    if (livingSpouse) {
+      return {
+        deceasedCharacterId,
+        totalDistributed: bankBalance,
+        livingChildrenCount: 0,
+        inheritedBySpouse: true,
+        transferredToEstate: false,
+        beneficiaries: [
+          {
+            characterId: livingSpouse.relatedCharacterId,
+            amount: bankBalance,
+            role: 'Spouse',
+          },
+        ],
+        description: `Estate of $${bankBalance.toLocaleString()} inherited entirely by surviving spouse.`,
+      };
+    }
+
+    // No living children or spouse -> transfer to Estate
+    return {
+      deceasedCharacterId,
+      totalDistributed: 0,
+      livingChildrenCount: 0,
+      inheritedBySpouse: false,
+      transferredToEstate: true,
+      beneficiaries: [],
+      description: `[Estate Placeholder] No living heirs. $${bankBalance.toLocaleString()} transferred to Estate holding.`,
     };
   }
 }

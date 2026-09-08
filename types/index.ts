@@ -69,6 +69,7 @@ export interface Character {
   geneticLooksModifier?: number | null;
   birthCity: string;
   birthCountry: string;
+  bankBalance: number;
   karma: number; // Internal database only
   createdAt: Date;
   updatedAt: Date;
@@ -88,6 +89,97 @@ export interface LifeSummaryResponse {
   saveSlot: SaveSlot;
   life: Life;
   character: ClientCharacter; // Enforces karma exclusion
+}
+
+// ---------------------------------------------------------
+// Family System & Relationships (Prompt 03)
+// ---------------------------------------------------------
+
+export type RelationshipType =
+  | 'Spouse'
+  | 'Ex'
+  | 'Parent'
+  | 'Child'
+  | 'Sibling'
+  | 'Friend'
+  | 'BestFriend'
+  | 'Enemy';
+
+export type RelationshipStatus = 'Active' | 'Ended' | 'Deceased';
+
+export type FriendTier =
+  | 'Acquaintance'
+  | 'Friend'
+  | 'Best Friend'
+  | 'Close Family';
+
+export interface Relationship {
+  id: string;
+  characterId: string;
+  relatedCharacterId: string;
+  type: RelationshipType;
+  relationshipStrength: number; // 0-100
+  status: RelationshipStatus;
+  startedAt: number; // game year
+  endedAt?: number | null;
+  sabotageChance?: number | null; // For Enemy, derived from Influence stat via FormulaEngine
+  relatedCharacter?: ClientCharacter; // Hydrated details
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface FamilyEvent {
+  id: string;
+  characterId: string;
+  relatedCharacterId?: string | null;
+  eventType: 'Marriage' | 'Divorce' | 'Birth' | 'Death' | string;
+  gameYear: number;
+  description: string;
+  createdAt: string | Date;
+}
+
+export interface MarriageResult {
+  spouseRelationship: Relationship;
+  promotedFromDormant: boolean;
+  familyEvent: FamilyEvent;
+}
+
+export interface DivorceResult {
+  exRelationship: Relationship;
+  characterBalance: number;
+  partnerBalance: number;
+  familyEvent: FamilyEvent;
+}
+
+export interface ChildBirthResult {
+  child: ClientCharacter;
+  parentToChildRel: Relationship;
+  childToParentRel: Relationship;
+  familyEvent: FamilyEvent;
+}
+
+export interface InheritanceResult {
+  deceasedCharacterId: string;
+  totalDistributed: number;
+  perChildShare?: number;
+  livingChildrenCount: number;
+  inheritedBySpouse?: boolean;
+  transferredToEstate?: boolean;
+  beneficiaries: Array<{ characterId: string; amount: number; role: string }>;
+  description: string;
+}
+
+/**
+ * Derives the UI friend tier label from relationship strength + type.
+ * Not separately stored in the database.
+ */
+export function deriveFriendTier(type: RelationshipType, strength: number): FriendTier {
+  if (type === 'Parent' || type === 'Child' || type === 'Sibling' || type === 'Spouse') {
+    return 'Close Family';
+  }
+  if (strength >= 80) return 'Best Friend';
+  if (strength >= 40) return 'Friend';
+  return 'Acquaintance';
 }
 
 // ---------------------------------------------------------
