@@ -1,6 +1,6 @@
 {
   "name": "Destiny",
-  "description": "Technical foundation for Destiny life simulation game — Infrastructure, data schema, formula engine stub, and life persistence.",
+  "description": "Destiny — Ultra-deep life-simulation engine with local-only persistence, variable game clock, and formula-driven NPC life systems.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

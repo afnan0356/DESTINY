@@ -24,4 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Destiny"
 
-include(":app")
+include(":android:app")
